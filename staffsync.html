@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StaffSync | Advanced Employee Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Tailwind Dark Mode configuration
+        tailwind.config = {
+          darkMode: 'class', // Enable class-based dark mode
+        }
+         // Function to apply theme based on localStorage
+        function applyTheme() {
+          if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            if(document.getElementById('darkModeToggle')) document.getElementById('darkModeToggle').checked = true;
+          } else {
+            document.documentElement.classList.remove('dark');
+             if(document.getElementById('darkModeToggle')) document.getElementById('darkModeToggle').checked = false;
+          }
+        }
+        applyTheme(); // Apply theme on initial load
+      </script>
+    <style>
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background-color: #f0f4f8; /* Light mode bg */
+            transition: background-color 0.3s ease;
+        }
+        /* Dark mode styles */
+        .dark body { background-color: #0f172a; /* Slate 900 */ }
+        .dark .bg-white { background-color: #1e293b; /* Slate 800 */ }
+        .dark .text-slate-800 { color: #e2e8f0; /* Slate 200 */ }
+        .dark .text-slate-700 { color: #cbd5e1; /* Slate 300 */ }
+        .dark .text-slate-600 { color: #94a3b8; /* Slate 400 */ }
+        .dark .text-slate-500 { color: #64748b; /* Slate 500 */ }
+        .dark .border-slate-200 { border-color: #334155; /* Slate 700 */ }
+        .dark .bg-slate-50 { background-color: #334155; /* Slate 700 */ }
+        .dark .bg-slate-100 { background-color: #334155; /* Slate 700 */ }
+        .dark .bg-slate-200 { background-color: #475569; /* Slate 600 */ }
+        .dark .bg-slate-200:hover { background-color: #64748b; /* Slate 500 */ }
+        .dark .text-blue-800 { color: #93c5fd; /* Blue 300 */ }
+        .dark .bg-blue-100 { background-color: #1e3a8a; /* Blue 900 */ }
+        .dark .text-green-800 { color: #86efac; /* Green 300 */ }
+        .dark .bg-green-100 { background-color: #166534; /* Green 900 */ }
+        .dark .text-purple-800 { color: #c4b5fd; /* Purple 300 */ }
+        .dark .bg-purple-100 { background-color: #5b21b6; /* Purple 800 */ }
+        .dark .text-yellow-800 { color: #fcd34d; /* Yellow 300 */ }
+        .dark .bg-yellow-100 { background-color: #b45309; /* Yellow 800 */}
+        .dark .text-red-700 { color: #fca5a5; /* Red 300 */ }
+        .dark .bg-red-100 { background-color: #991b1b; /* Red 800 */ }
+        .dark input, .dark select, .dark textarea { color: #e2e8f0; } /* Ensure text input color is light */
+        .dark input::placeholder, .dark textarea::placeholder { color: #64748b; }
+        .dark .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3); } /* Darker shadow */
+        .dark .hover\:shadow-xl:hover { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3); } /* Darker hover shadow */
+
+
+        .modal-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center;
+            z-index: 50; opacity: 0; visibility: hidden; backdrop-filter: blur(4px);
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-backdrop.active { opacity: 1; visibility: visible; }
+        .modal-content {
+            max-height: 90vh; overflow-y: auto; transform: translateY(-20px) scale(0.98);
+            transition: transform 0.3s ease;
+        }
+        .modal-backdrop.active .modal-content { transform: translateY(0) scale(1); }
+        .btn-primary { background-image: linear-gradient(to right, #1e3a8a, #3b82f6); }
+        .btn-primary:hover { background-image: linear-gradient(to right, #1e40af, #2563eb); }
+        #toast {
+            position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); padding: 1rem 1.5rem;
+            border-radius: 0.5rem; color: white; font-weight: 500; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: bottom 0.5s ease-in-out; z-index: 100;
+        }
+        #toast.show { bottom: 30px; }
+        #toast.success { background-color: #22c55e; }
+        #toast.error { background-color: #ef4444; }
+        @keyframes pulse { 50% { opacity: .5; } }
+        .skeleton { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .eotm-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background-color: #f59e0b; /* amber-500 */
+            color: white;
+            padding: 2px 6px;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            transform: rotate(15deg);
+        }
+        @media print {
+            body * { visibility: hidden; }
+            #viewModal .modal-content, #viewModal .modal-content * { visibility: visible; }
+            #viewModal { 
+                position: absolute; left: 0; top: 0; margin: 0; padding: 0; width: 100%; height: 100%;
+                background-color: white; visibility: visible !important; opacity: 1 !important; 
+                backdrop-filter: none;
+            }
+            #viewModal .modal-content { 
+                box-shadow: none; border: none; width: 100%; max-height: none; overflow: visible;
+                transform: none !important;
+            }
+            #closeViewModalBtn, #printProfileBtn { display: none; } /* Hide buttons in print view */
+            #viewModalTitle { font-size: 1.5rem; text-align: center; margin-bottom: 1rem; }
+            #viewModalContent { grid-template-columns: 1fr; gap: 0.5rem; }
+            .modal-backdrop { visibility: hidden !important; }
+        }
+        
+        /* Dark Mode Toggle Switch */
+        .toggle-checkbox:checked { right: 0; border-color: #68D391; /* Green */}
+        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; /* Green */ }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-slate-200">
+
+    <!-- App Container -->
+    <div id="app" class="min-h-screen">
+
+        <!-- Login Screen -->
+        <div id="loginScreen" class="flex items-center justify-center min-h-screen p-4 bg-slate-100 dark:bg-slate-900">
+            <div class="w-full max-w-md">
+                 <div class="bg-white p-8 md:p-10 rounded-2xl shadow-2xl text-center transform transition-all duration-500 hover:scale-105">
+                     <!-- ... Login form structure ... -->
+                     <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-200">StaffSync</h1>
+                     <p class="text-slate-500 dark:text-slate-400 mt-2 mb-8">Welcome back! Please log in.</p>
+                     <div id="loginError" class="hidden bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-200 p-3 rounded-md mb-4 text-sm text-left"></div>
+                     <form id="loginForm">
+                         <div class="mb-4 text-left">
+                             <label for="username" class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Username</label>
+                             <input type="text" id="username" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition dark:bg-slate-700 dark:border-slate-600">
+                         </div>
+                         <div class="mb-6 text-left">
+                             <label for="password" class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Password</label>
+                             <input type="password" id="password" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition dark:bg-slate-700 dark:border-slate-600">
+                         </div>
+                         <button type="submit" class="w-full btn-primary text-white py-3 rounded-lg hover:shadow-lg transition-all duration-300 font-semibold text-base">Sign In</button>
+                     </form>
+                 </div>
+                 <p class="text-xs text-slate-400 dark:text-slate-500 text-center mt-6">Admin: `admin`/`pass` | Viewer: `user`/`pass`</p>
+            </div>
+        </div>
+
+        <!-- Dashboard Screen -->
+        <div id="dashboardScreen" class="hidden">
+            <header class="bg-white shadow-md sticky top-0 z-40">
+                <div class="container mx-auto flex justify-between items-center p-4">
+                     <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-200">StaffSync</h1>
+                    <div class="flex items-center space-x-4">
+                        <!-- Dark Mode Toggle -->
+                        <div class="flex items-center">
+                            <i data-lucide="sun" class="w-5 h-5 text-yellow-500 mr-2"></i>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="darkModeToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer dark:bg-slate-400 dark:border-slate-500"/>
+                                <label for="darkModeToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-slate-700"></label>
+                            </div>
+                             <i data-lucide="moon" class="w-5 h-5 text-indigo-500"></i>
+                        </div>
+                        <button id="addEmployeeBtn" class="btn-primary text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-300 font-medium text-sm flex items-center space-x-2"><i data-lucide="plus-circle" class="w-4 h-4"></i><span>Add Employee</span></button>
+                        <button id="viewAuditLogBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-300 font-medium text-sm flex items-center space-x-2"><i data-lucide="history" class="w-4 h-4"></i><span>Audit Log</span></button>
+                        <button id="logoutBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 px-4 py-2 rounded-lg transition-all duration-300 font-medium text-sm flex items-center space-x-2"><i data-lucide="log-out" class="w-4 h-4"></i><span>Sign Out</span></button>
+                    </div>
+                </div>
+            </header>
+            
+            <main class="container mx-auto p-4 md:p-8">
+                <!-- Dashboard Analytics Section -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- Total Employees -->
+                    <div class="bg-white p-6 rounded-2xl shadow-lg flex items-center space-x-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                        <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900">
+                            <i data-lucide="users" class="w-6 h-6 text-blue-800 dark:text-blue-300"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500 dark:text-slate-400">Total Employees</p>
+                            <p id="totalEmployees" class="text-2xl font-bold text-slate-800 dark:text-slate-200">0</p>
+                        </div>
+                    </div>
+                    <!-- Average Salary -->
+                    <div class="bg-white p-6 rounded-2xl shadow-lg flex items-center space-x-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                        <div class="p-3 rounded-full bg-green-100 dark:bg-green-900">
+                            <i data-lucide="dollar-sign" class="w-6 h-6 text-green-800 dark:text-green-300"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500 dark:text-slate-400">Average Salary</p>
+                            <p id="averageSalary" class="text-2xl font-bold text-slate-800 dark:text-slate-200">$0</p>
+                        </div>
+                    </div>
+                    <!-- Branch Chart -->
+                    <div class="bg-white p-6 rounded-2xl shadow-lg md:col-span-2 lg:col-span-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                         <h3 class="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">By Branch</h3>
+                        <div class="h-32">
+                            <canvas id="branchChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                 <!-- Upcoming Events Widget -->
+                 <div id="upcomingEventsSection" class="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg transition-all duration-300 hover:shadow-xl">
+                        <h3 class="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center"><i data-lucide="cake" class="w-5 h-5 mr-2 text-purple-500"></i>Upcoming Birthdays</h3>
+                        <div id="upcomingBirthdaysEl" class="space-y-2 max-h-40 overflow-y-auto">
+                            <p class="text-slate-400 dark:text-slate-500 text-sm">No upcoming birthdays.</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg transition-all duration-300 hover:shadow-xl">
+                        <h3 class="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center"><i data-lucide="party-popper" class="w-5 h-5 mr-2 text-yellow-500"></i>Upcoming Anniversaries</h3>
+                        <div id="upcomingAnniversariesEl" class="space-y-2 max-h-40 overflow-y-auto">
+                             <p class="text-slate-400 dark:text-slate-500 text-sm">No upcoming anniversaries.</p>
+                        </div>
+                    </div>
+                 </div>
+
+                <div class="p-6 bg-white rounded-2xl shadow-lg">
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-slate-800 dark:text-slate-200">Employee Directory</h2>
+                        <div class="flex items-center space-x-3 mt-4 md:mt-0">
+                             <!-- Show Archived Toggle -->
+                             <div class="flex items-center text-sm">
+                                <label for="showArchivedToggle" class="mr-2 text-slate-600 dark:text-slate-400">Show Archived</label>
+                                <input type="checkbox" id="showArchivedToggle" class="relative w-10 h-5 transition-all duration-200 ease-in-out bg-gray-300 rounded-full shadow-inner appearance-none cursor-pointer dark:bg-slate-700 toggle-checkbox:checked">
+                             </div>
+                            <button id="exportCsvBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-300 font-medium text-sm flex items-center space-x-2"><i data-lucide="download" class="w-4 h-4"></i><span>Export CSV</span></button>
+                        </div>
+                    </div>
+                    <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mt-6">
+                        <!-- Search Input -->
+                        <div class="relative flex-grow">
+                            <input type="text" id="searchInput" placeholder="Search by name, title, email..." class="w-full px-4 py-3 pl-10 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition dark:bg-slate-700 dark:border-slate-600">
+                            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+                        </div>
+                        <!-- Branch Filter -->
+                        <div class="relative">
+                            <select id="branchFilter" class="w-full md:w-48 px-4 py-3 pr-10 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition appearance-none dark:bg-slate-700 dark:border-slate-600">
+                                <option value="all">All Branches</option>
+                                <!-- Options populated by JS -->
+                            </select>
+                            <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none"></i>
+                        </div>
+                         <!-- Sorting Dropdown -->
+                        <div class="relative">
+                            <select id="sortOptions" class="w-full md:w-48 px-4 py-3 pr-10 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition appearance-none dark:bg-slate-700 dark:border-slate-600">
+                                <option value="name-asc">Sort by Name (A-Z)</option>
+                                <option value="name-desc">Sort by Name (Z-A)</option>
+                                <option value="salary-desc">Sort by Salary (High-Low)</option>
+                                <option value="salary-asc">Sort by Salary (Low-High)</option>
+                                <option value="joinDate-desc">Sort by Newest</option>
+                                <option value="joinDate-asc">Sort by Oldest</option>
+                            </select>
+                             <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="employeeList" class="mt-8">
+                    <div id="listContainer" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                         <!-- Skeletons injected by JS -->
+                    </div>
+                     <!-- No Results State -->
+                     <div id="noResultsState" class="hidden text-center py-16">
+                        <div class="flex justify-center mb-4">
+                            <div class="p-4 rounded-full bg-slate-100 dark:bg-slate-700">
+                                <i data-lucide="search-x" class="w-12 h-12 text-slate-400 dark:text-slate-500"></i>
+                            </div>
+                        </div>
+                        <h3 class="text-xl font-semibold text-slate-700 dark:text-slate-300">No Employees Found</h3>
+                        <p id="noResultsMessage" class="text-slate-500 dark:text-slate-400 mt-2">Try adjusting your search or filters.</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="employeeModal" class="modal-backdrop">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-11/11 md:w-2/3 lg:w-1/2 modal-content">
+            <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200 dark:border-slate-700">
+                <h2 id="modalTitle" class="text-2xl font-bold text-slate-800 dark:text-slate-200">Employee Details</h2>
+                <button id="closeModalBtn" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition p-2 rounded-full -mr-2"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <form id="employeeForm">
+                <input type="hidden" id="employeeId">
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Form Fields -->
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Full Name</label>
+                        <input type="text" id="name" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition dark:bg-slate-700 dark:border-slate-600" required>
+                    </div>
+                    <div>
+                        <label for="jobTitle" class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Job Title</label>
+                        <input type="text" id="jobTitle" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition dark:bg-slate-700 dark:border-slate-600" required>
+                    </div>
+                     <div>
+                        <label for="email" class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Email Address</label>
+                        <input type="email" id="email" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition dark:bg-slate-700 dark:border-slate-600" required>
+                    </div>
+                    <div>
+                        <label for="phone" class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Phone Number</label>
+                        <input type="tel" id="phone" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition dark:bg-slate-700 dark:border-slate-600">
+                    </div>
+                    <div>
+                        <label for="branch" class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Branch</label>
+                        <select id="branch" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition appearance-none dark:bg-slate-700 dark:border-slate-600" required>
+                            <option value="">Select a branch</option>
+                            <option value="New York">KATANKULATHUR</option>
+                            <option value="London">VADAPALANI</option>
+                            <option value="Tokyo">RAMAPURAM</option>
+                            <option value="Sydney">DELHI</option>
+                            <option value="Remote">RAJASTHAN</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="salary" class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Salary ($)</label>
+                        <input type="number" id="salary" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition dark:bg-slate-700 dark:border-slate-600" required>
+                    </div>
+                    <div>
+                        <label for="joinDate" class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Joining Date</label>
+                        <input type="date" id="joinDate" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition dark:bg-slate-700 dark:border-slate-600" required>
+                    </div>
+                    <div>
+                        <label for="birthDate" class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Birth Date</label>
+                        <input type="date" id="birthDate" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition dark:bg-slate-700 dark:border-slate-600">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="address" class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Address</label>
+                        <textarea id="address" rows="3" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition dark:bg-slate-700 dark:border-slate-600"></textarea>
+                    </div>
+                    <div>
+                        <label for="employmentType" class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Employment Type</label>
+                        <select id="employmentType" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition appearance-none dark:bg-slate-700 dark:border-slate-600">
+                            <option value="Full-Time">Full-Time</option>
+                            <option value="Part-Time">Part-Time</option>
+                            <option value="Contractor">Contractor</option>
+                            <option value="Intern">Intern</option>
+                        </select>
+                    </div>
+                     <div class="flex items-center justify-start pt-4">
+                        <input type="checkbox" id="isEmployeeOfTheMonth" class="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                        <label for="isEmployeeOfTheMonth" class="ml-3 text-sm font-medium text-slate-700 dark:text-slate-300">Employee of the Month</label>
+                    </div>
+                 </div>
+                <div class="mt-8 flex justify-end space-x-4">
+                    <button type="button" id="cancelBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 px-6 py-3 rounded-lg hover:shadow-md transition-all duration-300 font-semibold text-base">Cancel</button>
+                    <button type="submit" class="btn-primary text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300 font-semibold text-base">Save Employee</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="viewModal" class="modal-backdrop">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-11/11 md:w-2/3 lg:w-1/2 modal-content">
+            <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200 dark:border-slate-700">
+                <h2 id="viewModalTitle" class="text-2xl font-bold text-slate-800 dark:text-slate-200"></h2>
+                <div>
+                     <button id="printProfileBtn" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition p-2 rounded-full"><i data-lucide="printer" class="w-5 h-5"></i></button>
+                     <button id="closeViewModalBtn" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition p-2 rounded-full -mr-2"><i data-lucide="x" class="w-6 h-6"></i></button>
+                </div>
+            </div>
+            <div id="viewModalContent" class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-slate-600 dark:text-slate-400"></div>
+        </div>
+    </div>
+
+    <!-- Audit Log Modal -->
+    <div id="auditLogModal" class="modal-backdrop">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-11/11 md:w-2/3 lg:w-3/5 modal-content">
+             <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200 dark:border-slate-700">
+                <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-200">Audit Log</h2>
+                <button id="closeAuditLogModalBtn" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition p-2 rounded-full -mr-2"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div id="auditLogContent" class="space-y-4 max-h-96 overflow-y-auto">
+                <!-- Log items will be injected here -->
+                <p class="text-slate-500 dark:text-slate-400">No audit logs found.</p>
+            </div>
+            <!-- [NEW] Added close button container -->
+            <div class="mt-6 flex justify-end">
+                <button type="button" id="auditLogCloseBtn_bottom" class="bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 px-6 py-2 rounded-lg hover:shadow-md transition-all duration-300 font-semibold">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete/Archive Modal -->
+    <div id="deleteModal" class="modal-backdrop">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-11/11 max-w-md modal-content">
+            <div class="text-center">
+                <div class="flex justify-center mb-4">
+                    <div class="p-3 rounded-full bg-red-100 dark:bg-red-800">
+                        <i data-lucide="alert-triangle" class="w-8 h-8 text-red-700 dark:text-red-300"></i>
+                    </div>
+                </div>
+                <h2 id="deleteModalTitle" class="text-xl font-bold text-slate-800 dark:text-slate-200">Archive Employee</h2>
+                <p id="deleteModalText" class="text-slate-600 dark:text-slate-400 mt-2 mb-6">Are you sure you want to archive this employee? They will be hidden from the main list.</p>
+
+                <div class="flex justify-center space-x-4">
+                     <button type="button" id="cancelDeleteBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 px-6 py-2 rounded-lg hover:shadow-md transition-all duration-300 font-semibold">Cancel</button>
+                    <button type="button" id="confirmDeleteBtn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all duration-300 font-semibold">Archive</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class=""></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, query, serverTimestamp, orderBy, limit, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"; 
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyACP0mdlFEbBUQK5FRd24DEeOUY9pPm7Fw",
+            authDomain: "employee-management-7cd9b.firebaseapp.com",
+            projectId: "employee-management-7cd9b",
+            storageBucket: "employee-management-7cd9b.appspot.com", 
+            messagingSenderId: "130609723411",
+            appId: "1:130609723411:web:04ca2e599242e9a517a7e6",
+            measurementId: "G-VZ1RWD2KLB"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // UI Elements & State
+        const ui = {
+            loginScreen: document.getElementById('loginScreen'), dashboardScreen: document.getElementById('dashboardScreen'),
+            loginForm: document.getElementById('loginForm'), loginError: document.getElementById('loginError'),
+            logoutBtn: document.getElementById('logoutBtn'), addEmployeeBtn: document.getElementById('addEmployeeBtn'),
+            listContainer: document.getElementById('listContainer'), noResultsState: document.getElementById('noResultsState'),
+            noResultsMessage: document.getElementById('noResultsMessage'),
+            searchInput: document.getElementById('searchInput'), branchFilter: document.getElementById('branchFilter'),
+            toast: document.getElementById('toast'), totalEmployeesEl: document.getElementById('totalEmployees'),
+            averageSalaryEl: document.getElementById('averageSalary'), employeeModal: document.getElementById('employeeModal'),
+            modalTitle: document.getElementById('modalTitle'), employeeForm: document.getElementById('employeeForm'),
+            cancelBtn: document.getElementById('cancelBtn'), closeModalBtn: document.getElementById('closeModalBtn'),
+            deleteModal: document.getElementById('deleteModal'), cancelDeleteBtn: document.getElementById('cancelDeleteBtn'),
+            confirmDeleteBtn: document.getElementById('confirmDeleteBtn'),
+            deleteModalTitle: document.getElementById('deleteModalTitle'),
+            deleteModalText: document.getElementById('deleteModalText'),
+            exportCsvBtn: document.getElementById('exportCsvBtn'),
+            branchChartCanvas: document.getElementById('branchChart'), viewModal: document.getElementById('viewModal'),
+            viewModalTitle: document.getElementById('viewModalTitle'), viewModalContent: document.getElementById('viewModalContent'),
+            closeViewModalBtn: document.getElementById('closeViewModalBtn'), 
+            isEmployeeOfTheMonthCheckbox: document.getElementById('isEmployeeOfTheMonth'),
+            viewAuditLogBtn: document.getElementById('viewAuditLogBtn'), auditLogModal: document.getElementById('auditLogModal'),
+            auditLogContent: document.getElementById('auditLogContent'), closeAuditLogModalBtn: document.getElementById('closeAuditLogModalBtn'),
+            auditLogCloseBtn_bottom: document.getElementById('auditLogCloseBtn_bottom'), // [NEW] Added new button
+            printProfileBtn: document.getElementById('printProfileBtn'),
+            darkModeToggle: document.getElementById('darkModeToggle'),
+            upcomingBirthdaysEl: document.getElementById('upcomingBirthdays'),
+            upcomingAnniversariesEl: document.getElementById('upcomingAnniversaries'),
+            showArchivedToggle: document.getElementById('showArchivedToggle'),
+            sortOptions: document.getElementById('sortOptions'),
+        };
+        
+        let state = {
+            currentUser: null, 
+            employeesCollectionRef: collection(db, 'employees'), 
+            auditLogCollectionRef: collection(db, 'auditLog'), 
+            unsubscribeEmployees: null, unsubscribeAuditLog: null,
+            employeeToDeleteId: null, 
+            employeeToUnarchiveId: null,
+            allEmployees: [], 
+            userRole: 'viewer', // Default role
+            branchChart: null,
+            showArchived: false, 
+            sortBy: 'name-asc',
+        };
+        
+        // --- CORE FUNCTIONS ---
+        function createIcons() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            } else {
+                console.warn('Lucide icons not loaded yet.');
+            }
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                state.currentUser = user;
+                // User is authenticated, but we manage app-level role via `state.userRole`
+                // If the role isn't set (e.g., on page refresh), show login
+                if (!state.userRole || state.userRole === 'viewer') {
+                     // Stay on login page unless a role is actively set by form
+                     showLogin();
+                }
+            } else {
+                // No user, sign in anonymously
+                try {
+                    await signInAnonymously(auth);
+                } catch (error) {
+                    console.error("Anonymous sign-in failed: ", error);
+                    ui.loginError.textContent = "Authentication service failed. Please refresh.";
+                    ui.loginError.classList.remove('hidden');
+                }
+            }
+        });
+
+        ui.loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = e.target.username.value;
+            const password = e.target.password.value;
+
+            // Simple hardcoded login
+            if (username === 'admin' && password === 'pass') {
+                state.userRole = 'admin';
+                ui.loginError.classList.add('hidden');
+                bootDashboard();
+            } else if (username === 'user' && password === 'pass') {
+                state.userRole = 'viewer';
+                ui.loginError.classList.add('hidden');
+                bootDashboard();
+            } else {
+                ui.loginError.textContent = "Invalid username or password.";
+                ui.loginError.classList.remove('hidden');
+            }
+        });
+
+        function bootDashboard() {
+            showDashboard();
+            updateUIPermissions();
+            listenForEmployees();
+            if (state.userRole === 'admin') {
+                listenForAuditLog();
+            }
+        }
+
+        ui.logoutBtn.addEventListener('click', () => {
+            state.userRole = 'viewer'; // Reset role
+            state.allEmployees = [];
+            ui.listContainer.innerHTML = ''; // Clear list
+            
+            // Unsubscribe from listeners
+            if (state.unsubscribeEmployees) state.unsubscribeEmployees();
+            if (state.unsubscribeAuditLog) state.unsubscribeAuditLog();
+            
+            state.unsubscribeEmployees = null;
+            state.unsubscribeAuditLog = null;
+
+            // Reset charts
+            if (state.branchChart) {
+                state.branchChart.destroy();
+                state.branchChart = null;
+            }
+
+            showLogin();
+        });
+
+        // --- UI & MODAL MANAGEMENT ---
+        function showToast(message, type = 'success') {
+            ui.toast.textContent = message;
+            ui.toast.className = type === 'success' ? 'success' : 'error';
+            ui.toast.classList.add('show');
+            setTimeout(() => {
+                ui.toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function showLogin() {
+            ui.loginScreen.classList.remove('hidden');
+            ui.dashboardScreen.classList.add('hidden');
+        }
+
+        function showDashboard() {
+            ui.loginScreen.classList.add('hidden');
+            ui.dashboardScreen.classList.remove('hidden');
+            createIcons(); // Re-render icons on dashboard load
+        }
+
+        function updateUIPermissions() {
+            const isAdmin = state.userRole === 'admin';
+            ui.addEmployeeBtn.style.display = isAdmin ? 'flex' : 'none';
+            ui.viewAuditLogBtn.style.display = isAdmin ? 'flex' : 'none';
+            // Edit/Delete buttons are handled during renderEmployees
+        }
+
+        function openModal(modalEl) {
+            modalEl.classList.add('active');
+        }
+        function closeModal(modalEl) {
+            modalEl.classList.remove('active');
+        }
+
+        function openEmployeeModal(employee = null) {
+            ui.employeeForm.reset(); // Clear form
+            if (employee) {
+                // Edit Mode
+                ui.modalTitle.textContent = "Edit Employee";
+                document.getElementById('employeeId').value = employee.id;
+                document.getElementById('name').value = employee.name || '';
+                document.getElementById('jobTitle').value = employee.jobTitle || '';
+                document.getElementById('email').value = employee.email || '';
+                document.getElementById('phone').value = employee.phone || '';
+                document.getElementById('branch').value = employee.branch || '';
+                document.getElementById('salary').value = employee.salary || '';
+                document.getElementById('joinDate').value = employee.joinDate || '';
+                document.getElementById('birthDate').value = employee.birthDate || '';
+                document.getElementById('address').value = employee.address || '';
+                document.getElementById('employmentType').value = employee.employmentType || 'Full-Time';
+                document.getElementById('isEmployeeOfTheMonth').checked = employee.isEmployeeOfTheMonth || false;
+            } else {
+                // Add Mode
+                ui.modalTitle.textContent = "Add New Employee";
+                document.getElementById('employeeId').value = '';
+            }
+            openModal(ui.employeeModal);
+        }
+
+        function openViewModal(employee) {
+            ui.viewModalTitle.textContent = employee.name;
+            ui.viewModalContent.innerHTML = `
+                <div class="space-y-2">
+                    <p class="text-sm text-slate-500 dark:text-slate-500">Job Title</p>
+                    <p class="font-medium">${employee.jobTitle || 'N/A'}</p>
+                </div>
+                <div class="space-y-2">
+                    <p class="text-sm text-slate-500 dark:text-slate-500">Branch</p>
+                    <p class="font-medium">${employee.branch || 'N/A'}</p>
+                </div>
+                <div class="space-y-2">
+                    <p class="text-sm text-slate-500 dark:text-slate-500">Email Address</p>
+                    <p class="font-medium truncate">${employee.email || 'N/A'}</p>
+                </div>
+                <div class="space-y-2">
+                    <p class="text-sm text-slate-500 dark:text-slate-500">Phone Number</p>
+                    <p class="font-medium">${employee.phone || 'N/A'}</p>
+                </div>
+                <div class="space-y-2">
+                    <p class="text-sm text-slate-500 dark:text-slate-500">Salary</p>
+                    <p class="font-medium">$${Number(employee.salary || 0).toLocaleString()}</p>
+                </div>
+                <div class="space-y-2">
+                    <p class="text-sm text-slate-500 dark:text-slate-500">Employment Type</p>
+                    <p class="font-medium">${employee.employmentType || 'N/A'}</p>
+                </div>
+                 <div class="space-y-2">
+                    <p class="text-sm text-slate-500 dark:text-slate-500">Joining Date</p>
+                    <p class="font-medium">${employee.joinDate ? new Date(employee.joinDate + 'T00:00:00').toLocaleDateString() : 'N/A'}</p>
+                </div>
+                 <div class="space-y-2">
+                    <p class="text-sm text-slate-500 dark:text-slate-500">Birth Date</p>
+                    <p class="font-medium">${employee.birthDate ? new Date(employee.birthDate + 'T00:00:00').toLocaleDateString() : 'N/A'}</p>
+                </div>
+                <div class="md:col-span-2 space-y-2">
+                    <p class="text-sm text-slate-500 dark:text-slate-500">Address</p>
+                    <p class="font-medium">${employee.address || 'N/A'}</p>
+                </div>
+            `;
+            openModal(ui.viewModal);
+        }
+
+        function openDeleteModal(id) {
+            const employee = state.allEmployees.find(emp => emp.id === id);
+            if (!employee) return;
+
+            state.employeeToDeleteId = id;
+            ui.deleteModalTitle.textContent = "Archive Employee";
+            ui.deleteModalText.textContent = `Are you sure you want to archive ${employee.name}? They will be hidden from the main list.`;
+            ui.confirmDeleteBtn.textContent = "Archive";
+            ui.confirmDeleteBtn.className = "bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all duration-300 font-semibold";
+            
+            openModal(ui.deleteModal);
+        }
+        
+        // Event listeners
+        ui.addEmployeeBtn.addEventListener('click', () => openEmployeeModal());
+        ui.cancelBtn.addEventListener('click', () => closeModal(ui.employeeModal));
+        ui.closeModalBtn.addEventListener('click', () => closeModal(ui.employeeModal));
+        ui.closeViewModalBtn.addEventListener('click', () => closeModal(ui.viewModal));
+        ui.cancelDeleteBtn.addEventListener('click', () => closeModal(ui.deleteModal));
+        ui.viewAuditLogBtn.addEventListener('click', () => openModal(ui.auditLogModal)); 
+        ui.closeAuditLogModalBtn.addEventListener('click', () => closeModal(ui.auditLogModal)); 
+        ui.auditLogCloseBtn_bottom.addEventListener('click', () => closeModal(ui.auditLogModal)); // [NEW] Added listener for new button
+        ui.printProfileBtn.addEventListener('click', () => window.print()); 
+        
+        ui.darkModeToggle.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            }
+            // Re-render charts for dark mode
+            updateAnalyticsAndFilters(state.allEmployees);
+        });
+        
+        ui.showArchivedToggle.addEventListener('change', (e) => { 
+            state.showArchived = e.target.checked;
+            renderEmployees(); 
+        });
+        
+        ui.sortOptions.addEventListener('change', (e) => {
+             state.sortBy = e.target.value;
+             renderEmployees(); 
+        });
+
+        // --- FIRESTORE OPERATIONS ---
+        async function logAuditEvent(action, employeeName, details = "") {
+            if (state.userRole !== 'admin') return; // Only admins can write logs
+            try {
+                await addDoc(state.auditLogCollectionRef, {
+                    action: action,
+                    employeeName: employeeName,
+                    details: details,
+                    user: state.currentUser ? state.currentUser.uid : 'anonymous',
+                    role: state.userRole,
+                    timestamp: serverTimestamp()
+                });
+            } catch (error) {
+                console.error("Error writing audit log: ", error);
+            }
+        }
+
+        function listenForAuditLog() {
+            if (state.unsubscribeAuditLog) state.unsubscribeAuditLog(); // Unsubscribe from previous listener
+            
+            const q = query(state.auditLogCollectionRef, orderBy('timestamp', 'desc'), limit(50));
+            state.unsubscribeAuditLog = onSnapshot(q, (snapshot) => {
+                if (snapshot.empty) {
+                    ui.auditLogContent.innerHTML = '<p class="text-slate-500 dark:text-slate-400">No audit logs found.</p>';
+                    return;
+                }
+                ui.auditLogContent.innerHTML = snapshot.docs.map(doc => {
+                    const log = doc.data();
+                    const time = log.timestamp ? log.timestamp.toDate().toLocaleString() : 'Just now';
+                    return `
+                        <div class="p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                            <p class="font-medium text-slate-800 dark:text-slate-200">${log.action}: <span class="font-bold">${log.employeeName}</span></p>
+                            <p class="text-sm text-slate-600 dark:text-slate-400">${log.details || 'No details'}</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">${time} - By ${log.role}</p>
+                        </div>
+                    `;
+                }).join('');
+            }, (error) => {
+                console.error("Error listening to audit log: ", error);
+                ui.auditLogContent.innerHTML = '<p class="text-red-500">Failed to load audit logs.</p>';
+            });
+        }
+
+        function listenForEmployees() {
+            if (state.unsubscribeEmployees) state.unsubscribeEmployees(); // Unsubscribe from previous listener
+
+            // Show skeletons while loading
+            showSkeletons();
+            
+            const q = query(state.employeesCollectionRef); // We get all and filter/sort in JS
+            state.unsubscribeEmployees = onSnapshot(q, (snapshot) => {
+                state.allEmployees = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // Once data is loaded, update everything
+                updateAnalyticsAndFilters(state.allEmployees);
+                updateUpcomingEvents(state.allEmployees);
+                renderEmployees(); // This will remove skeletons
+            }, (error) => {
+                console.error("Error listening to employees: ", error);
+                ui.listContainer.innerHTML = `<p class="text-red-500 col-span-full text-center">Failed to load employees. Please refresh.</p>`;
+            });
+        }
+
+        ui.employeeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const employeeId = document.getElementById('employeeId').value;
+            
+            const employeeData = {
+                name: document.getElementById('name').value,
+                jobTitle: document.getElementById('jobTitle').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                branch: document.getElementById('branch').value,
+                salary: Number(document.getElementById('salary').value),
+                joinDate: document.getElementById('joinDate').value,
+                birthDate: document.getElementById('birthDate').value,
+                address: document.getElementById('address').value,
+                employmentType: document.getElementById('employmentType').value,
+                isEmployeeOfTheMonth: document.getElementById('isEmployeeOfTheMonth').checked,
+                status: 'Active' // New/edited employees are always active
+            };
+
+            try {
+                if (employeeId) {
+                    // Update existing employee
+                    const employeeRef = doc(db, 'employees', employeeId);
+                    await updateDoc(employeeRef, employeeData);
+                    showToast("Employee updated successfully!");
+                    logAuditEvent("Updated Employee", employeeData.name, `ID: ${employeeId}`);
+                } else {
+                    // Add new employee
+                    const docRef = await addDoc(state.employeesCollectionRef, employeeData);
+                    showToast("Employee added successfully!");
+                    logAuditEvent("Added Employee", employeeData.name, `ID: ${docRef.id}`);
+                }
+                closeModal(ui.employeeModal);
+                ui.employeeForm.reset();
+            } catch (error) {
+                console.error("Error saving employee: ", error);
+                showToast("Error saving employee.", 'error');
+            }
+        });
+
+        ui.confirmDeleteBtn.addEventListener('click', async () => {
+            if (state.employeeToDeleteId) {
+                const employeeRef = doc(db, 'employees', state.employeeToDeleteId);
+                const employee = state.allEmployees.find(emp => emp.id === state.employeeToDeleteId);
+                try {
+                    await updateDoc(employeeRef, { status: 'Archived' });
+                    showToast(`${employee.name} has been archived.`);
+                    logAuditEvent("Archived Employee", employee.name, `ID: ${state.employeeToDeleteId}`);
+                } catch (error) {
+                    console.error("Error archiving employee: ", error);
+                    showToast("Error archiving employee.", 'error');
+                }
+                state.employeeToDeleteId = null;
+                closeModal(ui.deleteModal);
+            }
+        });
+
+        async function unarchiveEmployee(id) {
+            const employeeRef = doc(db, 'employees', id);
+            const employee = state.allEmployees.find(emp => emp.id === id);
+            try {
+                await updateDoc(employeeRef, { status: 'Active' });
+                showToast(`${employee.name} has been restored.`);
+                logAuditEvent("Restored Employee", employee.name, `ID: ${id}`);
+            } catch (error) {
+                console.error("Error restoring employee: ", error);
+                showToast("Error restoring employee.", 'error');
+            }
+        }
+
+        function showSkeletons() {
+            ui.noResultsState.classList.add('hidden');
+            let skeletons = '';
+            for (let i = 0; i < 6; i++) {
+                skeletons += `
+                    <div class="bg-white p-6 rounded-2xl shadow-lg skeleton">
+                        <div class="flex items-center space-x-4 mb-4">
+                            <div class="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-600"></div>
+                            <div>
+                                <div class="h-5 w-32 bg-slate-200 dark:bg-slate-600 rounded"></div>
+                                <div class="h-4 w-24 bg-slate-200 dark:bg-slate-600 rounded mt-2"></div>
+                            </div>
+                        </div>
+                        <div class="h-4 w-full bg-slate-200 dark:bg-slate-600 rounded mt-2"></div>
+                        <div class="h-4 w-3/4 bg-slate-200 dark:bg-slate-600 rounded mt-2"></div>
+                    </div>
+                `;
+            }
+            ui.listContainer.innerHTML = skeletons;
+        }
+
+
+        // --- ANALYTICS, FILTERS & RENDERING ---
+        function updateAnalyticsAndFilters(employees) {
+            const activeEmployees = employees.filter(emp => emp.status === 'Active');
+
+            // Update Total Employees
+            ui.totalEmployeesEl.textContent = activeEmployees.length;
+
+            // Update Average Salary
+            if (activeEmployees.length > 0) {
+                const totalSalary = activeEmployees.reduce((sum, emp) => sum + (Number(emp.salary) || 0), 0);
+                const avgSalary = totalSalary / activeEmployees.length;
+                ui.averageSalaryEl.textContent = `$${Math.round(avgSalary).toLocaleString()}`;
+            } else {
+                ui.averageSalaryEl.textContent = "$0";
+            }
+
+            // Populate Branch Filter
+            const branches = [...new Set(employees.map(emp => emp.branch).filter(Boolean))];
+            branches.sort();
+            const currentFilter = ui.branchFilter.value; // Preserve selection
+            ui.branchFilter.innerHTML = '<option value="all">All Branches</option>'; // Reset
+            branches.forEach(branch => {
+                ui.branchFilter.innerHTML += `<option value="${branch}">${branch}</option>`;
+            });
+            ui.branchFilter.value = currentFilter;
+
+            // Update Branch Chart
+            const branchCounts = activeEmployees.reduce((acc, emp) => {
+                acc[emp.branch] = (acc[emp.branch] || 0) + 1;
+                return acc;
+            }, {});
+
+            if (state.branchChart) {
+                state.branchChart.destroy(); // Destroy old chart instance
+            }
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const gridColor = isDark ? 'rgba(100, 116, 139, 0.2)' : 'rgba(203, 213, 225, 0.5)';
+            const textColor = isDark ? '#e2e8f0' : '#334155';
+            
+            state.branchChart = new Chart(ui.branchChartCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(branchCounts),
+                    datasets: [{
+                        data: Object.values(branchCounts),
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#64748b'],
+                        borderWidth: 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: textColor,
+                                boxWidth: 12,
+                                padding: 15,
+                                font: { family: "'Poppins', sans-serif" }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateUpcomingEvents(employees) {
+            const activeEmployees = employees.filter(emp => emp.status === 'Active');
+            const today = new Date();
+            const todayMonth = today.getMonth();
+            const todayDate = today.getDate();
+            
+            const upcomingBirthdays = [];
+            const upcomingAnniversaries = [];
+
+            const inNext30Days = (month, day) => {
+                const date = new Date(today.getFullYear(), month, day);
+                let diff = (date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+                if (diff < 0) { // If date is in the past, check next year's
+                     date.setFullYear(today.getFullYear() + 1);
+                     diff = (date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+                }
+                return diff >= 0 && diff <= 30;
+            };
+
+            activeEmployees.forEach(emp => {
+                if (emp.birthDate) {
+                    const [bYear, bMonth, bDay] = emp.birthDate.split('-').map(Number);
+                    if (inNext30Days(bMonth - 1, bDay)) {
+                        const isToday = (bMonth - 1) === todayMonth && bDay === todayDate;
+                        upcomingBirthdays.push({ name: emp.name, date: `${bMonth}/${bDay}`, isToday });
+                    }
+                }
+                if (emp.joinDate) {
+                    const [jYear, jMonth, jDay] = emp.joinDate.split('-').map(Number);
+                    if (inNext30Days(jMonth - 1, jDay) && today.getFullYear() > jYear) {
+                         const isToday = (jMonth - 1) === todayMonth && jDay === todayDate;
+                         const years = today.getFullYear() - jYear;
+                         upcomingAnniversaries.push({ name: emp.name, date: `${jMonth}/${jDay}`, years, isToday });
+                    }
+                }
+            });
+
+            // Render Birthdays
+            if (upcomingBirthdays.length === 0) {
+                ui.upcomingBirthdaysEl.innerHTML = '<p class="text-slate-400 dark:text-slate-500 text-sm">No upcoming birthdays.</p>';
+            } else {
+                ui.upcomingBirthdaysEl.innerHTML = upcomingBirthdays
+                    .map(b => `<div class="text-sm flex justify-between ${b.isToday ? 'font-bold text-purple-600 dark:text-purple-400' : ''}"><span>${b.name} ${b.isToday ? ' (Today!)': ''}</span> <span class="text-slate-500 dark:text-slate-400">${b.date}</span></div>`)
+                    .join('');
+            }
+
+            // Render Anniversaries
+             if (upcomingAnniversaries.length === 0) {
+                ui.upcomingAnniversariesEl.innerHTML = '<p class="text-slate-400 dark:text-slate-500 text-sm">No upcoming anniversaries.</p>';
+            } else {
+                ui.upcomingAnniversariesEl.innerHTML = upcomingAnniversaries
+                    .map(a => `<div class="text-sm flex justify-between ${a.isToday ? 'font-bold text-yellow-600 dark:text-yellow-400' : ''}"><span>${a.name} ${a.isToday ? ' (Today!)': ''}</span> <span class="text-slate-500 dark:text-slate-400">${a.years} ${a.years > 1 ? 'yrs' : 'yr'} (${a.date})</span></div>`)
+                    .join('');
+            }
+        }
+        
+        function renderEmployees() {
+            const searchTerm = ui.searchInput.value.toLowerCase();
+            const selectedBranch = ui.branchFilter.value;
+            const isAdmin = state.userRole === 'admin';
+
+            let employeesToRender = [...state.allEmployees]; 
+            const [sortField, sortDir] = state.sortBy.split('-');
+            
+            employeesToRender.sort((a, b) => {
+                let valA, valB;
+                
+                switch (sortField) {
+                    case 'salary':
+                        valA = Number(a.salary) || 0;
+                        valB = Number(b.salary) || 0;
+                        break;
+                    case 'joinDate':
+                        valA = new Date(a.joinDate || 0).getTime();
+                        valB = new Date(b.joinDate || 0).getTime();
+                        break;
+                    case 'name':
+                    default:
+                        valA = (a.name || '').toLowerCase();
+                        valB = (b.name || '').toLowerCase();
+                        break;
+                }
+
+                if (valA < valB) return sortDir === 'asc' ? -1 : 1;
+                if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            const filteredEmployees = employeesToRender.filter(emp => {
+                const statusMatch = state.showArchived ? emp.status === 'Archived' : emp.status === 'Active';
+                const branchMatch = selectedBranch === 'all' || emp.branch === selectedBranch;
+                const searchMatch = searchTerm === '' ||
+                    (emp.name && emp.name.toLowerCase().includes(searchTerm)) ||
+                    (emp.jobTitle && emp.jobTitle.toLowerCase().includes(searchTerm)) ||
+                    (emp.email && emp.email.toLowerCase().includes(searchTerm)) ||
+                    (emp.phone && emp.phone.toLowerCase().includes(searchTerm));
+                
+                return statusMatch && branchMatch && searchMatch;
+            });
+
+            // --- Rendering Logic ---
+            if (filteredEmployees.length === 0) { 
+                 ui.noResultsState.classList.remove('hidden'); 
+                 ui.listContainer.innerHTML = '';
+                 if (state.allEmployees.length === 0) {
+                    ui.noResultsMessage.textContent = 'Your directory is empty. Add an employee to get started!';
+                 } else if (state.showArchived && searchTerm === '' && selectedBranch === 'all') {
+                    ui.noResultsMessage.textContent = 'No archived employees found.';
+                 } else if (searchTerm !== '' || selectedBranch !== 'all') {
+                    ui.noResultsMessage.textContent = 'No employees match your filters.';
+                 } else {
+                    ui.noResultsMessage.textContent = 'No active employees found.';
+                 }
+            } else {
+                 ui.noResultsState.classList.add('hidden');
+                 ui.listContainer.innerHTML = filteredEmployees.map(emp => {
+                    const statusColor = emp.status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400';
+                    const nameInitial = emp.name ? emp.name.charAt(0).toUpperCase() : '?';
+                    const nameColorClass = `bg-blue-500`; // Placeholder, can be dynamic
+                    
+                    // [MODIFIED] Add highlight class for EotM
+                    const eotmHighlightClass = emp.isEmployeeOfTheMonth 
+                        ? 'shadow-lg border-4 border-amber-400 dark:border-amber-500' // Added prominent border
+                        : 'shadow-lg'; // Keep standard shadow
+                    
+                    return `
+                    <div class="bg-white p-5 rounded-2xl ${eotmHighlightClass} transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative">
+                        ${emp.isEmployeeOfTheMonth ? '<div class="eotm-badge"><i data-lucide="award" class="w-3 h-3 inline-block -mt-1"></i> EotM</div>' : ''}
+                        
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-shrink-0 w-12 h-12 rounded-full ${nameColorClass} flex items-center justify-center text-white font-bold text-xl">
+                                ${nameInitial}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-lg font-semibold text-slate-800 dark:text-slate-200 truncate" title="${emp.name}">${emp.name}</p>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 truncate" title="${emp.jobTitle}">${emp.jobTitle}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 space-y-3">
+                            <div class="flex items-center text-sm text-slate-600 dark:text-slate-400">
+                                <i data-lucide="mail" class="w-4 h-4 mr-3 text-slate-400"></i>
+                                <span class="truncate">${emp.email || 'N/A'}</span>
+                            </div>
+                            <div class="flex items-center text-sm text-slate-600 dark:text-slate-400">
+                                <i data-lucide="phone" class="w-4 h-4 mr-3 text-slate-400"></i>
+                                <span>${emp.phone || 'N/A'}</span>
+                            </div>
+                            <div class="flex items-center text-sm text-slate-600 dark:text-slate-400">
+                                <i data-lucide="building-2" class="w-4 h-4 mr-3 text-slate-400"></i>
+                                <span>${emp.branch || 'N/A'}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                            <span class="text-xs font-medium px-2 py-1 rounded-full ${statusColor}">${emp.status}</span>
+                            <div class="flex space-x-2">
+                                <button class="view-btn p-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition dark:hover:bg-slate-700" data-id="${emp.id}" title="View">
+                                    <i data-lucide="eye" class="w-5 h-5"></i>
+                                </button>
+                                ${isAdmin && emp.status === 'Active' ? `
+                                <button class="edit-btn p-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-green-600 transition dark:hover:bg-slate-700" data-id="${emp.id}" title="Edit">
+                                    <i data-lucide="edit-2" class="w-5 h-5"></i>
+                                </button>
+                                <button class="delete-btn p-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-red-600 transition dark:hover:bg-slate-700" data-id="${emp.id}" title="Archive">
+                                    <i data-lucide="archive" class="w-5 h-5"></i>
+                                </button>
+                                ` : ''}
+                                ${isAdmin && emp.status === 'Archived' ? `
+                                <button class="unarchive-btn p-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-green-600 transition dark:hover:bg-slate-700" data-id="${emp.id}" title="Restore">
+                                    <i data-lucide="archive-restore" class="w-5 h-5"></i>
+                                </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                 }).join('');
+            }
+            
+            // Attach event listeners after rendering
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const employee = state.allEmployees.find(emp => emp.id === e.currentTarget.dataset.id); 
+                    if(employee) openViewModal(employee);
+                });
+            });
+            if (isAdmin) {
+                document.querySelectorAll('.edit-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                         const employee = state.allEmployees.find(emp => emp.id === e.currentTarget.dataset.id); 
+                         if(employee) openEmployeeModal(employee);
+                    });
+                });
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                         openDeleteModal(e.currentTarget.dataset.id);
+                    });
+                });
+                document.querySelectorAll('.unarchive-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                         unarchiveEmployee(e.currentTarget.dataset.id);
+                    });
+                });
+            }
+            createIcons();
+        }
+        
+        function exportToCSV() {
+            const employeesToExport = state.allEmployees;
+            if (employeesToExport.length === 0) {
+                showToast("No employees to export.", "error");
+                return;
+            }
+
+            const headers = ["ID", "Name", "JobTitle", "Email", "Phone", "Branch", "Salary", "JoinDate", "BirthDate", "Address", "EmploymentType", "Status", "IsEotM"];
+            const csvRows = [headers.join(',')]; // Header row
+
+            employeesToExport.forEach(emp => {
+                const values = [
+                    emp.id,
+                    `"${emp.name || ''}"`,
+                    `"${emp.jobTitle || ''}"`,
+                    `"${emp.email || ''}"`,
+                    `"${emp.phone || ''}"`,
+                    `"${emp.branch || ''}"`,
+                    emp.salary || 0,
+                    emp.joinDate || '',
+                    emp.birthDate || '',
+                    `"${(emp.address || '').replace(/"/g, '""')}"`, // Handle quotes in address
+                    emp.employmentType || '',
+                    emp.status || '',
+                    emp.isEmployeeOfTheMonth || false
+                ];
+                csvRows.push(values.join(','));
+            });
+
+            const csvString = csvRows.join('\n');
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', `staffsync_export_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            logAuditEvent("Exported CSV", `${employeesToExport.length} employees`);
+        }
+
+        // Initial load
+        // window.addEventListener('load', createIcons); // Removed this line
+        applyTheme(); // Ensure theme is set on load
+        createIcons(); // Added this direct call
+    </script>
+</body>
+</html>
+
